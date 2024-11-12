@@ -7,7 +7,7 @@ public class Controller2D : MonoBehaviour
 
 	public LayerMask collisionMask;
 	public bool grounded;
-    readonly float collisionTolerance = 1e-3f;
+    public static readonly float collisionTolerance = .001f;
 
 	BoxCollider2D m_collider;
 
@@ -28,35 +28,59 @@ public class Controller2D : MonoBehaviour
 		{
 			if(firstCollisionInfo.collider.gameObject.TryGetComponent(out Platform platform))
             {
-				Debug.Log("Player collided with platform");
-				platform.HandleCollision(gameObject, firstCollisionInfo);
+				return platform.HandleCollision(gameObject, firstCollisionInfo);
 			}
             else if (firstCollisionInfo.collider.gameObject.TryGetComponent(out Player player))
             {
 				Debug.Log("Player collided with player");
-                float remainingTime = 1.0f - firstCollisionInfo.time;
-                Vector2 remainingVelocity = remainingTime * velocity;
-                Vector2 otherVelocity = player.GetVelocity() * Time.fixedDeltaTime;
+				Debug.Log("Other player min: " + player.controller.m_collider.bounds.min.x.ToString("F10"));
+				Debug.Log("Other player max: " + player.controller.m_collider.bounds.max.x.ToString("F10"));
+				Debug.Log("This player min: " + m_collider.bounds.min.x.ToString("F10"));
+				Debug.Log("This player max: " + m_collider.bounds.max.x.ToString("F10"));
+				float remainingTime = 1.0f - firstCollisionInfo.time;
+				if (remainingTime > collisionTolerance)
+				{
+					Vector2 remainingVelocity = remainingTime * velocity;
+					Vector2 otherVelocity = player.GetVelocity() * Time.fixedDeltaTime;
 
-				Debug.Log("otherVelocity: " + otherVelocity);
+					Debug.Log("velocity: " + velocity.ToString("F10"));
+					Debug.Log("otherVelocity: " + otherVelocity.ToString("F10"));
+					Debug.Log("remainingTime: " + remainingTime.ToString("F10"));
+					Debug.Log("remainingVelocity: " + remainingVelocity.ToString("F10"));
+					Debug.Log("firstCollisionInfo.normal: " + firstCollisionInfo.normal);
 
-                Vector2 averageVelocity = new Vector2(otherVelocity.x + (Mathf.Abs(firstCollisionInfo.normal.x) * remainingVelocity.x),
-													  otherVelocity.y + (Mathf.Abs(firstCollisionInfo.normal.y) * remainingVelocity.y)) / 2;
+					Vector2 averageVelocity;
+					if (firstCollisionInfo.normal.x != 0)
+					{
+						averageVelocity = new Vector2((otherVelocity.x + remainingVelocity.x) / 2.0f, otherVelocity.y);
+					}
+					else
+					{
+						averageVelocity = new Vector2(otherVelocity.x, (otherVelocity.y + remainingVelocity.y) / 2.0f);
+					}
 
-				Debug.Log("averageVelocity: " + averageVelocity);
+					Debug.Log("averageVelocity: " + averageVelocity);
 
-				CollisionInfo playerCollision = player.controller.Move(averageVelocity);
-                player.moved = true;
+					CollisionInfo playerCollision = player.controller.Move(averageVelocity);
+					player.moved = true;
 
-                CollisionInfo outCollision = MoveAndCollide(remainingVelocity * playerCollision.time);
-				return outCollision;
+					Debug.Log("playerCollision.time: " + playerCollision.time);
+
+					CollisionInfo outCollision = MoveAndCollide(playerCollision.velocity *
+						new Vector2(Mathf.Abs(firstCollisionInfo.normal.x), Mathf.Abs(firstCollisionInfo.normal.y)) * playerCollision.time);
+
+					Debug.Log("Other player min: " + player.controller.m_collider.bounds.min.x.ToString("F10"));
+					Debug.Log("Other player max: " + player.controller.m_collider.bounds.max.x.ToString("F10"));
+					Debug.Log("This player min: " + m_collider.bounds.min.x.ToString("F10"));
+					Debug.Log("This player max: " + m_collider.bounds.max.x.ToString("F10"));
+					return outCollision;
+				}
             }
             else
 			{
 				float remainingTime = 1.0f - firstCollisionInfo.time;
-				if (remainingTime > 0)
+				if (remainingTime > collisionTolerance)
 				{
-					Debug.Log("Remaining time: " + remainingTime);
 					float dotprod = (velocity.x * firstCollisionInfo.normal.y + velocity.y * firstCollisionInfo.normal.x) * remainingTime;
 					velocity.x = dotprod * firstCollisionInfo.normal.y;
 					velocity.y = dotprod * firstCollisionInfo.normal.x;
@@ -93,7 +117,13 @@ public class Controller2D : MonoBehaviour
 			grounded = true;
 		}
 
+		if(firstCollisionTime < collisionTolerance)
+        {
+			firstCollisionTime = 0;
+        }
+
 		transform.Translate(velocity * firstCollisionTime);
+		Physics2D.SyncTransforms();
 
 		CollisionInfo info;
 		info.hit = firstCollisionTime < 1.0f;
@@ -185,12 +215,24 @@ public class Controller2D : MonoBehaviour
 			yExit = yInvExit / velocity.y;
 		}
 
+		if (xEntry < collisionTolerance && xEntry > -collisionTolerance)
+		{
+			xEntry = 0.0f;
+		}
+
+		if (yEntry < collisionTolerance && yEntry > -collisionTolerance)
+		{
+			yEntry = 0.0f;
+		}
+
 		float entryTime = Mathf.Max(xEntry, yEntry);
 		float exitTime = Mathf.Min(xExit, yExit);
 
 		Debug.Log("Entry time: " + entryTime + " Exit time: " + exitTime);
+		Debug.Log("xInvEntry: " + xInvEntry + " yInvEntry: " + yInvEntry);
+
 		// if there was no collision
-		if (entryTime > exitTime || xEntry < 0.0f && yEntry < 0.0f || xEntry > 1.0f || yEntry > 1.0f)
+		if (entryTime > exitTime || (xEntry < 0.0f && yEntry < 0.0f) || xEntry > 1.0f || yEntry > 1.0f)
 		{
 			normal = Vector2.zero;
 			return 1.0f;
