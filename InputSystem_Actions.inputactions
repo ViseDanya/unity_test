@@ -1134,6 +1134,78 @@
                     "isPartOfComposite": true
                 }
             ]
+        },
+        {
+            "name": "KeyboardMiddle",
+            "id": "32d3ceb4-6d18-49ef-92b2-0f16c89dfd75",
+            "actions": [
+                {
+                    "name": "Move",
+                    "type": "Value",
+                    "id": "0324a101-60d6-441d-bbb4-9d6d3d61ca56",
+                    "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "2D Vector",
+                    "id": "6afd4f8d-5d9e-4a68-a897-1e5ac7557778",
+                    "path": "2DVector(mode=1)",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Move",
+                    "isComposite": true,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "up",
+                    "id": "c4219c49-bfee-4df9-8309-bb7477b3d72b",
+                    "path": "<Keyboard>/t",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";KeyboardMiddle",
+                    "action": "Move",
+                    "isComposite": false,
+                    "isPartOfComposite": true
+                },
+                {
+                    "name": "down",
+                    "id": "f97f2e55-89fe-4e36-a07e-31c24d693c8d",
+                    "path": "<Keyboard>/g",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";KeyboardMiddle",
+                    "action": "Move",
+                    "isComposite": false,
+                    "isPartOfComposite": true
+                },
+                {
+                    "name": "left",
+                    "id": "96ae2b3b-b8bc-4bfb-a48b-3b63eea9dd08",
+                    "path": "<Keyboard>/f",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";KeyboardMiddle",
+                    "action": "Move",
+                    "isComposite": false,
+                    "isPartOfComposite": true
+                },
+                {
+                    "name": "right",
+                    "id": "0b953650-3ea0-4476-bbba-0be5efd629c6",
+                    "path": "<Keyboard>/h",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";KeyboardMiddle",
+                    "action": "Move",
+                    "isComposite": false,
+                    "isPartOfComposite": true
+                }
+            ]
         }
     ],
     "controlSchemes": [
@@ -1218,6 +1290,11 @@
                     "isOR": false
                 }
             ]
+        },
+        {
+            "name": "KeyboardMiddle",
+            "bindingGroup": "KeyboardMiddle",
+            "devices": []
         }
     ]
 }

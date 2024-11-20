@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Linq;
 
 public class CollisionResolver : MonoBehaviour
 {
@@ -25,77 +26,53 @@ public class CollisionResolver : MonoBehaviour
             }
         }
 
-        // check each pair of dynamic objects and find the collision that occured first
-        // since we already moved the objects, we want to find the longestTimeSinceCollision
-        DynamicObject firstCollisionObj1 = null;
-        DynamicObject firstCollisionObj2 = null;
-        float longestTimeSinceCollision = 0.0f;
-        for (int i = 0; i < allObjects.Length; i++)
+        bool verticalCollisionDetected;
+        do
         {
-            for (int j = i + 1; j < allObjects.Length; j++)
+            verticalCollisionDetected = false;
+            for (int i = 0; i < allObjects.Length; i++)
             {
-                DynamicObject obj1 = allObjects[i];
-                DynamicObject obj2 = allObjects[j];
-                if(obj1.CollidesWith(obj2))
+                for (int j = i + 1; j < allObjects.Length; j++)
                 {
-                    // find collision time
-                    float obj1EndPos;
-                    float obj2EndPos;
+                    DynamicObject obj1 = allObjects[i];
+                    DynamicObject obj2 = allObjects[j];
+                    if (obj1.CollidesWith(obj2))
+                    {
+                        verticalCollisionDetected = true;
+                        DynamicObject downObject;
+                        DynamicObject upObject;
+                        if (obj1.bounds.max.y - obj2.bounds.min.y < obj2.bounds.max.y - obj1.bounds.min.y)
+                        {
+                            downObject = obj1;
+                            upObject = obj2;
+                        }
+                        else
+                        {
+                            downObject = obj2;
+                            upObject = obj1;
+                        }
 
-                    float obj1Max = obj1.bounds.max.y;
-                    float obj1Min = obj1.bounds.min.y;
-                    float obj2Max = obj2.bounds.max.y;
-                    float obj2Min = obj2.bounds.min.y;
-                    if (obj1Max - obj2Min < obj2Max - obj1Min)
-                    {
-                        obj1EndPos = obj1Max;
-                        obj2EndPos = obj2Min;
-                    }
-                    else
-                    {
-                        obj1EndPos = obj1Min;
-                        obj2EndPos = obj2Max;
-                    }
+                        float overlap = downObject.bounds.max.y - upObject.bounds.min.y;
 
-                    float timeSinceCollision = (obj1EndPos - obj2EndPos) / (obj1.velocity.y - obj2.velocity.y);
-                    // we know the objects intersected because we did an intersection check,
-                    // so t must be between 0 and 1 already.
-                    if (timeSinceCollision > longestTimeSinceCollision)
-                    {
-                        firstCollisionObj1 = obj1;
-                        firstCollisionObj2 = obj2;
-                        longestTimeSinceCollision = timeSinceCollision;
-                        Debug.Log("Vertical overlap: " + (obj1EndPos - obj2EndPos));
+                        List<DynamicObject> downObjects = downObject.GetAdjacencyList(DynamicObject.Direction.DOWN);
+                        List<DynamicObject> upObjects = upObject.GetAdjacencyList(DynamicObject.Direction.UP);
+
+                        float massDown = downObject.mass + downObjects.Aggregate(0.0f, (acc, obj) => acc + obj.mass);
+                        float massUp = upObject.mass + upObjects.Aggregate(0.0f, (acc, obj) => acc + obj.mass);
+                        float totalMass = massDown + massUp;
+
+                        downObject.bounds.center -= Vector3.up * (overlap * massUp/totalMass + collisionTolerance);
+                        upObject.bounds.center += Vector3.up * (overlap * massDown/totalMass + collisionTolerance);
+
+                        downObjects.ForEach(obj => obj.bounds.center -= Vector3.up * (overlap * massUp / totalMass));
+                        upObjects.ForEach(obj => obj.bounds.center += Vector3.up * (overlap * massUp / totalMass));
+
+                        downObject.Adjacencies[DynamicObject.Direction.UP] = upObject;
+                        upObject.Adjacencies[DynamicObject.Direction.DOWN] = downObject;
                     }
                 }
             }
-        }
-
-        if (longestTimeSinceCollision > 0.0f)
-        {
-            // resolve collision by applying time backwards
-            // go to time slightly before collision to avoid floating point issues
-            // TODO: figure out if above condition needs to be changed also to avoid floating point issues.
-            // > collisionTolerance? probably not because then we might still have overlap when resolving future collisions
-            float obj1VelocityAfterCollision = firstCollisionObj1.velocity.y * (longestTimeSinceCollision + collisionTolerance);
-            float obj2VelocityAfterCollision = firstCollisionObj2.velocity.y * (longestTimeSinceCollision + collisionTolerance);
-            firstCollisionObj1.bounds.center -= Vector3.up * obj1VelocityAfterCollision;
-            firstCollisionObj2.bounds.center -= Vector3.up * obj2VelocityAfterCollision;
-
-            Debug.Log("obj1 center: " + firstCollisionObj1.bounds.center.y);
-            Debug.Log("obj2 center: " + firstCollisionObj2.bounds.center.y);
-
-            // figure out how much to move objects based on conservation of momentum
-            // TODO: apply left/right/up/down adjacencies to get correct mass and move all objects together
-            // currently, just average velocities
-            float conservedVelocity = (obj1VelocityAfterCollision + obj2VelocityAfterCollision) / 2.0f;
-
-            // apply velocity to both objects
-            firstCollisionObj1.bounds.center += Vector3.up * conservedVelocity;
-            firstCollisionObj2.bounds.center += Vector3.up * conservedVelocity;
-        }
-
-        Debug.Log("Vertical collision time: " + longestTimeSinceCollision);
+        } while (verticalCollisionDetected);
 
         // TODO: repeat horizontally
         // move all objects horizontally
@@ -107,78 +84,53 @@ public class CollisionResolver : MonoBehaviour
             }
         }
 
-        // check each pair of dynamic objects and find the collision that occured first
-        // since we already moved the objects, we want to find the longestTimeSinceCollision
-        firstCollisionObj1 = null;
-        firstCollisionObj2 = null;
-        longestTimeSinceCollision = 0.0f;
-        for (int i = 0; i < allObjects.Length; i++)
+        bool horizontalCollisionDetected;
+        do
         {
-            for (int j = i + 1; j < allObjects.Length; j++)
+            horizontalCollisionDetected = false;
+            for (int i = 0; i < allObjects.Length; i++)
             {
-                DynamicObject obj1 = allObjects[i];
-                DynamicObject obj2 = allObjects[j];
-                if (obj1.CollidesWith(obj2))
+                for (int j = i + 1; j < allObjects.Length; j++)
                 {
-                    // find collision time
-                    float obj1EndPos;
-                    float obj2EndPos;
+                    DynamicObject obj1 = allObjects[i];
+                    DynamicObject obj2 = allObjects[j];
+                    if (obj1.CollidesWith(obj2))
+                    {
+                        horizontalCollisionDetected = true;
+                        DynamicObject leftObject;
+                        DynamicObject rightObject;
+                        if (obj1.bounds.max.x - obj2.bounds.min.x < obj2.bounds.max.x - obj1.bounds.min.x)
+                        {
+                            leftObject = obj1;
+                            rightObject = obj2;
+                        }
+                        else
+                        {
+                            leftObject = obj2;
+                            rightObject = obj1;
+                        }
 
-                    float obj1Max = obj1.bounds.max.x;
-                    float obj1Min = obj1.bounds.min.x;
-                    float obj2Max = obj2.bounds.max.x;
-                    float obj2Min = obj2.bounds.min.x;
-                    if (obj1Max - obj2Min < obj2Max - obj1Min)
-                    {
-                        obj1EndPos = obj1Max;
-                        obj2EndPos = obj2Min;
-                    }
-                    else
-                    {
-                        obj1EndPos = obj1Min;
-                        obj2EndPos = obj2Max;
-                    }
+                        float overlap = leftObject.bounds.max.x - rightObject.bounds.min.x;
 
-                    // TODO: ideally, overlap would be 0 if we are just moving vertically, but because of floating point precision,
-                    // we can end up still thinking that we overlap after resolving a vertical collision,
-                    // so then we get timeSinceCollision = infinity.
-                    // How can we avoid this? use skin width?
-                    float timeSinceCollision = (obj1EndPos - obj2EndPos) / (obj1.velocity.x - obj2.velocity.x);
-                    // we know the objects intersected because we did an intersection check,
-                    // so t must be between 0 and 1 already.
-                    if (timeSinceCollision > longestTimeSinceCollision)
-                    {
-                        firstCollisionObj1 = obj1;
-                        firstCollisionObj2 = obj2;
-                        longestTimeSinceCollision = timeSinceCollision;
-                        Debug.Log("Horizontal overlap: " + (obj1EndPos - obj2EndPos));
+                        List<DynamicObject> leftObjects = leftObject.GetAdjacencyList(DynamicObject.Direction.LEFT);
+                        List<DynamicObject> rightObjects = rightObject.GetAdjacencyList(DynamicObject.Direction.RIGHT);
+
+                        float massLeft = leftObject.mass + leftObjects.Aggregate(0.0f, (acc, obj) => acc + obj.mass);
+                        float massRight = rightObject.mass + rightObjects.Aggregate(0.0f, (acc, obj) => acc + obj.mass);
+                        float totalMass = massLeft + massRight;
+
+                        leftObject.bounds.center -= Vector3.right * (overlap * massRight / totalMass + collisionTolerance);
+                        rightObject.bounds.center += Vector3.right * (overlap * massLeft / totalMass + collisionTolerance);
+
+                        leftObjects.ForEach(obj => obj.bounds.center -= Vector3.right * (overlap * massRight / totalMass));
+                        rightObjects.ForEach(obj => obj.bounds.center += Vector3.right * (overlap * massLeft / totalMass));
+
+                        leftObject.Adjacencies[DynamicObject.Direction.RIGHT] = rightObject;
+                        rightObject.Adjacencies[DynamicObject.Direction.LEFT] = leftObject;
                     }
                 }
             }
-        }
-
-        if (longestTimeSinceCollision > 0.0f)
-        {
-            // resolve collision by applying time backwards
-            float obj1VelocityAfterCollision = firstCollisionObj1.velocity.x * (longestTimeSinceCollision + collisionTolerance);
-            float obj2VelocityAfterCollision = firstCollisionObj2.velocity.x * (longestTimeSinceCollision + collisionTolerance);
-            firstCollisionObj1.bounds.center -= Vector3.right * obj1VelocityAfterCollision;
-            firstCollisionObj2.bounds.center -= Vector3.right * obj2VelocityAfterCollision;
-
-            Debug.Log("horizontal obj1 center: " + firstCollisionObj1.bounds.center.x);
-            Debug.Log("horizontal obj2 center: " + firstCollisionObj2.bounds.center.x);
-
-            // figure out how much to move objects based on conservation of momentum
-            // TODO: apply left/right/up/down adjacencies to get correct mass and move all objects together
-            // currently, just average velocities
-            float conservedVelocity = (obj1VelocityAfterCollision + obj2VelocityAfterCollision) / 2.0f;
-
-            // apply velocity to both objects
-            firstCollisionObj1.bounds.center += Vector3.right * conservedVelocity;
-            firstCollisionObj2.bounds.center += Vector3.right * conservedVelocity;
-        }
-
-        Debug.Log("Horizontal collision time: " + longestTimeSinceCollision);
+        } while (horizontalCollisionDetected);
 
         // move all the objects based on their bounds
         foreach (DynamicObject obj in allObjects)
