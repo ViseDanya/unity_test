@@ -1,34 +1,27 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 
-public abstract class DynamicObject : MonoBehaviour
+public abstract class DynamicObject : PhysicsObject
 {
 	public Vector2 velocity;
 
-	// TODO: make the value a list of DynamicObjects to take into account collisions
+	public bool isOnCeiling;
+	public bool isOnFloor;
+	public bool isOnWallLeft;
+	public bool isOnWallRight;
+
+	// TODO: make the value a set of DynamicObjects to take into account collisions
 	// with multiple objects in the same direction
 	public Dictionary<Direction, DynamicObject> Adjacencies = new();
 
-	public Bounds bounds;
-
 	public virtual float mass { get; }
 
-	public virtual void Start()
+	protected void Reset()
     {
-		bounds.center = transform.position;
-		bounds.extents = transform.localScale / 2.0f;
-	}
-
-	public bool CollidesWith(DynamicObject other)
-    {
-		return bounds.max.x > other.bounds.min.x &&
-			   other.bounds.max.x > bounds.min.x &&
-			   bounds.max.y > other.bounds.min.y &&
-			   other.bounds.max.y > bounds.min.y;
-	}
-
-	protected void ResetAdjacency()
-    {
+		isOnCeiling = false;
+		isOnFloor = false;
+		isOnWallLeft = false;
+		isOnWallRight = false;
 		Adjacencies.Clear();
 	}
 

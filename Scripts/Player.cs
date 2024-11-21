@@ -57,7 +57,7 @@ public class Player : DynamicObject
 
 	void FixedUpdate()
 	{
-		ResetAdjacency();
+		Reset();
         velocity = GetVelocity() * Time.fixedDeltaTime;
 		Debug.Log("Player " + id + ": " + velocity);
     }
